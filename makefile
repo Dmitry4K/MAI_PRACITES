@@ -63,5 +63,8 @@ clean:
 #освобождение занятых ресурсов (если аварийно заверешены команды компиляции)
 umount:
 	@umount /dev/loop2
+	@umount /dev/loop1
+	@umount /dev/loop0
 	@losetup -d /dev/loop1
 	@losetup -d /dev/loop2
+	@losetup -d /dev/loop0
