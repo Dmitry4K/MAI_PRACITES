@@ -23,7 +23,7 @@ _makefile_ - исправленный makefile (желательно не исп
 4. В папке проекта **необходимо создать файл .gdbinit с содержанием “ set auto-load safe-path /”**
 5. **Выполнить ряд команд** находясь в папке с исходниками:
 ```bash
-sudo apt install gcc make nasm qemu cgdb
+sudo apt install gcc make nasm qemu cgdb grub
 сhmod ugo+x run_qemu.sh
 chmod ugo+x compile.sh
 sudo ./compile.sh
