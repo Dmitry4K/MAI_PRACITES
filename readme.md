@@ -6,3 +6,4 @@ _readme.md_ - этот текст
 
 _source.zip_ - исходники MiniOS
 
+_MiniOS doc_ - документация MiniOS
