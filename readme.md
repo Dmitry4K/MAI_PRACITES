@@ -28,4 +28,5 @@ sudo ./compile.sh
 sudo ./run_qemu.sh
 ```
 Скрипт compile.sh скомпилирует ядро ос, образ и добавит в образ ядро.
+
 Скрипт run_qemu.sh запустит ос в qemu
