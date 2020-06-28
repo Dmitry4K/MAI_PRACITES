@@ -29,6 +29,14 @@ chmod ugo+x compile.sh
 sudo ./compile.sh
 sudo ./run_qemu.sh
 ```
+Если у вас по каким-то причинам **не работает chmod** и его не получается установить, то делаете это:
+```bash
+sudo apt install gcc make nasm qemu cgdb grub
+sudo bash ./compile.sh
+sudo bash ./run_qemu.sh
+```
+
+
 Скрипт compile.sh скомпилирует ядро ос, образ и добавит в образ ядро.
 
 Скрипт run_qemu.sh запустит ос в qemu
