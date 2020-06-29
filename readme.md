@@ -63,7 +63,7 @@ _Коментарий автора:_
 
 0. Выгрузить из виртуальной машины образ hdd.img (настроить общие папки если используете Virtual Box)
 
-\tСсылочка на гайд: https://lumpics.ru/set-up-virtualbox-shared-folders-in-linux/
+   Ссылочка на гайд: https://lumpics.ru/set-up-virtualbox-shared-folders-in-linux/
 1. Вставить флешку
 2. Используя программу Rufus (https://rufus.ie/ru_RU.html) или Win32DiskImager (https://informatiktv.ru/index.php/rabota-s-nositelyami/92-zapis-obraza-img-na-fleshku)
 3. Перезагрузить компьютер
