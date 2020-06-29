@@ -44,7 +44,7 @@ image:
 	@cp -r grub tempdir/boot/
 	@cp ./src/MiniOS.bin tempdir/
 #	@cp ./initrd tempdir/
-	@sleep 1
+	@sleep 5
 	@umount /dev/loop2
 	@rm -r tempdir
 	@losetup -d /dev/loop2
