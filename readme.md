@@ -117,3 +117,59 @@ int reserved(int i);                        //проверяет зарезер�
 void init_vfs(struct multiboot* mboot_ptr); //иницилизирует виртуальную файловую систему и таблицу файловых дескрипторов
 void fd_install(int fd, fs_node_t* file);   //связывает дескриптор с указателем на файл или нод
 ```
+
+### Тестирование VFS
+
+Тестирование происходит на следующих двух тестах
+
+```C
+static void process_one(registers_t reg){           //просто открываем файл и читаем из него
+	int flags = 1;
+	int fd;
+	char buf[256];
+	monitor_write("Opening Test.txt\n");
+	if((fd = open("test.txt", flags)) > 0){
+	        monitor_write("File test.txt opened!\n");
+	}
+	monitor_write("Reading the first file...\n");
+	read(fd, buf, 256, 0);
+	monitor_write("\t");
+	monitor_write(buf);
+	monitor_write("\n");
+	monitor_write("Closing the first file...\n");
+	close(fd);
+}
+
+void init_process_one(){
+  register_interrupt_handler(0x0, &process_one);
+}
+
+static void process_two(registers_t reg){         //открываем файл, читаем его и записываем туда что-то
+  int flags = 1;
+  int fd;
+  char buf[256];
+  char* str = "New text for test2.txt";
+  monitor_write("Opening test2.txt\n");
+  if((fd = open("test2.txt", flags))>0){
+    monitor_write("File test2.txt opened!\n");
+  }
+  monitor_write("Reading the second file...\n");
+  read(fd, buf, 256,0);
+  monitor_write("\t");
+  monitor_write(buf);
+  monitor_write("\n");
+  monitor_write("Writing to second file...\n");
+  write(fd,str,256,0);
+  monitor_write("Reading the second file...\n");
+  read(fd, buf, 256,0);
+  monitor_write("\t");
+  monitor_write(buf);
+  monitor_write("\n");
+  monitor_write("Closing the second file...\n");
+  close(fd);
+}
+
+void init_process_two(){
+  register_interrupt_handler(0x1, &process_two);
+}
+```
