@@ -116,6 +116,34 @@ fs_node_t *initialise_initrd(u32int location);
 
 Только эти функции работают напрямую с initrd. **Таким образом виртуальная файловая система лишь использует уже имеющиеся функции**.
 
+Примеры реализаций:
+
+```C
+static u32int initrd_read(fs_node_t *node, u32int offset, u32int size, u8int *buffer)
+{
+    initrd_file_header_t header = file_headers[node->inode];
+    if (offset > header.length)
+        return 0;
+    if (offset+size > header.length)
+        size = header.length-offset;
+    memcpy(buffer, (u8int*) (header.offset+offset), size);
+    return size;
+}
+
+static fs_node_t *initrd_finddir(fs_node_t *node, char *name)
+{
+    if (node == initrd_root &&
+        !strcmp(name, "dev") )
+        return initrd_dev;
+
+    int i;
+    for (i = 0; i < nroot_nodes; i++)
+        if (!strcmp(name, root_nodes[i].name))
+            return &root_nodes[i];
+    return 0;
+}
+```
+
 ### О виртуальной файловой системе
 
 Виртуальная файловая система реализует ряд новых типов данных, которое помогают работать с файловой системой. Файлы fs.h и fs.c - та самая виртуальная файловая система. Она предоставляет следующие типы данных:
@@ -214,7 +242,7 @@ fs_node_t *initialise_initrd(u32int location)
 
 При просмотре кода выше должно быть понятно, что загружается в виртуальную файловую систему корневая директория, dev-директория и информация о всех файлах на диске.
 
-Виртуальная файловая система предоставляет слудющие функции:
+Виртуальная файловая система предоставляет следующие функции:
 
 ```C
 u32int read_fs(fs_node_t *node, u32int offset, u32int size, u8int *buffer);
