@@ -89,6 +89,155 @@ initrd.img - отдельный модуль операционной систе
 
 Для его подклчения нужно добавить initrd.img к модулю hdd.img, добавив несколько строк в makefile, затем в файлу menu.lst указать этот модуль.
 
+### О модуле initrd.img
+
+**Структура** – в самом начале модуля записано кол-во файлов (n) на диске, далее идет n файловых заголовков (initrd_file_header_t) описывающих все файлы в системе. Далее идет содержание самих файлов. 
+
+Далее приведено описание initrd_file_header_t
+
+```C
+typedef struct
+{
+    u8int magic;     // Magic number, for error checking.
+    s8int name[64];  // Filename.
+    u32int offset;   // Offset in the initrd that the file starts.
+    u32int length;   // Length of the file.
+} initrd_file_header_t;
+```
+
+Моудль initrd.img предоставляет свои функции работы с файлами и каталогами, они приведены ниже:
+
+```C
+static u32int initrd_read(fs_node_t *node, u32int offset, u32int size, u8int *buffer);
+static struct dirent *initrd_readdir(fs_node_t *node, u32int index);
+static fs_node_t *initrd_finddir(fs_node_t *node, char *name);
+fs_node_t *initialise_initrd(u32int location);
+```
+
+Только эти функции работают напрямую с initrd. **Таким образом виртуальная файловая система лишь использует уже имеющиеся функции**.
+
+### О виртуальной файловой системе
+
+Виртуальная файловая система реализует ряд новых типов данных, которое помогают работать с файловой системой. Файлы fs.h и fs.c - та самая виртуальная файловаая система. Она предоставляет следующие типы данных:
+
+```C
+typedef struct fs_node
+{
+    char name[128];     // The filename.
+    u32int mask;        // The permissions mask.
+    u32int uid;         // The owning user.
+    u32int gid;         // The owning group.
+    u32int flags;       // Includes the node type. See #defines above.
+    u32int inode;       // This is device-specific - provides a way for a filesystem to identify files.
+    u32int length;      // Size of the file, in bytes.
+    u32int impl;        // An implementation-defined number.
+    read_type_t read;
+    write_type_t write;
+    open_type_t open;
+    close_type_t close;
+    readdir_type_t readdir;
+    finddir_type_t finddir;
+    struct fs_node *ptr; // Used by mountpoints and symlinks.
+} fs_node_t;
+
+struct dirent
+{
+    char name[128]; // Filename.
+    u32int ino;     // Inode number. Required by POSIX.
+};
+```
+read_type_t, write_type_t, open_type_t и т.д. ничто иное как указатели на функции открытия, чтенияЮ закртия файлов. При иницилизации файловой системы в эти поля должны быть помещены указатели на соотвествующие функции, которые будут вызываться файловой системой. Это происходит здесь (отмечено <----):
+
+```C
+fs_node_t *initialise_initrd(u32int location)
+{
+    // Initialise the main and file header pointers and populate the root directory.
+    initrd_header = (initrd_header_t *)location;
+    file_headers = (initrd_file_header_t *) (location+sizeof(initrd_header_t));
+
+    // Initialise the root directory.
+    initrd_root = (fs_node_t*)kmalloc(sizeof(fs_node_t));
+    strcpy(initrd_root->name, "initrd");
+    initrd_root->mask = initrd_root->uid = initrd_root->gid = initrd_root->inode = initrd_root->length = 0;
+    initrd_root->flags = FS_DIRECTORY;
+    initrd_root->read = 0;
+    initrd_root->write = 0;
+    initrd_root->open = 0;
+    initrd_root->close = 0;
+    initrd_root->readdir = &initrd_readdir;			//<------------
+    initrd_root->finddir = &initrd_finddir;			//<------------
+    initrd_root->ptr = 0;
+    initrd_root->impl = 0;
+
+    // Initialise the /dev directory (required!)
+    initrd_dev = (fs_node_t*)kmalloc(sizeof(fs_node_t));
+    strcpy(initrd_dev->name, "dev");
+    initrd_dev->mask = initrd_dev->uid = initrd_dev->gid = initrd_dev->inode = initrd_dev->length = 0;
+    initrd_dev->flags = FS_DIRECTORY;
+    initrd_dev->read = 0;
+    initrd_dev->write = 0;
+    initrd_dev->open = 0;
+    initrd_dev->close = 0;
+    initrd_dev->readdir = &initrd_readdir;			//<-----------
+    initrd_dev->finddir = &initrd_finddir;			//<-----------
+    initrd_dev->ptr = 0;
+    initrd_dev->impl = 0;
+
+    root_nodes = (fs_node_t*)kmalloc(sizeof(fs_node_t) * initrd_header->nfiles);
+    nroot_nodes = initrd_header->nfiles;
+
+    // For every file...
+    int i;
+    for (i = 0; i < initrd_header->nfiles; i++)
+    {
+        // Edit the file's header - currently it holds the file offset
+        // relative to the start of the ramdisk. We want it relative to the start
+        // of memory.
+        file_headers[i].offset += location;
+        // Create a new file node.
+        strcpy(root_nodes[i].name, &file_headers[i].name);
+        root_nodes[i].mask = root_nodes[i].uid = root_nodes[i].gid = 0;
+        root_nodes[i].length = file_headers[i].length;
+        root_nodes[i].inode = i;
+        root_nodes[i].flags = FS_FILE;
+        root_nodes[i].read = &initrd_read;			//<----------
+        root_nodes[i].write = 0;
+        root_nodes[i].readdir = 0;
+        root_nodes[i].finddir = 0;
+        root_nodes[i].open = 0;
+        root_nodes[i].close = 0;
+        root_nodes[i].impl = 0;
+    }
+    return initrd_root;
+}
+```
+
+При просмотре кода выше должно быть понятно, что загружается в виртуальную файловую систему корневая директория, dev-директория и информация о всех файлах на диске.
+
+Виртуальная файловая система предоставляет слудющие функции:
+
+```C
+u32int read_fs(fs_node_t *node, u32int offset, u32int size, u8int *buffer);
+u32int write_fs(fs_node_t *node, u32int offset, u32int size, u8int *buffer);
+void open_fs(fs_node_t *node, u8int read, u8int write);
+void close_fs(fs_node_t *node);
+struct dirent *readdir_fs(fs_node_t *node, u32int index);
+fs_node_t *finddir_fs(fs_node_t *node, char *name);
+```
+Реализация всех этих функций крайне проста, вот пример одной из них:
+```C
+u32int write_fs(fs_node_t *node, u32int offset, u32int size, u8int *buffer)
+{
+    // Has the node got a write callback?
+    if (node->write != 0)
+        return node->write(node, offset, size, buffer);
+    else
+        return 0;
+}
+```
+Тут происходит следующее: файловая система от переданного в функцию узла пытается выполнить команду write, если указатель на команду не пустой (если команда предусмотрена файловой системой), то выполняем команду.
+
+
 ### Posix стандарты и функции
 
 **В стандартах POSIX при открытии файла используется специальная таблица файловых дескрипторов**, которая обеспечивает более удобное взаимодействие с файлами по средством обычного целочисленного числа. 
